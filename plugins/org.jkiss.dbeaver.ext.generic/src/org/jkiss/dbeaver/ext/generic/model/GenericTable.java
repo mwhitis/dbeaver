@@ -151,7 +151,7 @@ public class GenericTable extends JDBCTable<GenericDataSource, GenericStructCont
 
     @Nullable
     @Override
-    public synchronized Collection<? extends GenericTableColumn> getAttributes(@NotNull DBRProgressMonitor monitor)
+    public synchronized List<? extends GenericTableColumn> getAttributes(@NotNull DBRProgressMonitor monitor)
         throws DBException
     {
         return this.getContainer().getTableCache().getChildren(monitor, getContainer(), this);
@@ -221,7 +221,7 @@ public class GenericTable extends JDBCTable<GenericDataSource, GenericStructCont
 
     @Nullable
     @Override
-    @Property(viewable = true, multiline = true, order = 100)
+    @Property(viewable = true, editableExpr = "object.dataSource.metaModel.tableCommentEditable", updatableExpr = "object.dataSource.metaModel.tableCommentEditable", multiline = true, order = 100)
     public String getDescription()
     {
         return description;

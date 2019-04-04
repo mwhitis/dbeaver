@@ -20,10 +20,12 @@ package org.jkiss.dbeaver.ui.charts;
 import org.eclipse.jface.resource.ColorRegistry;
 import org.eclipse.swt.graphics.Color;
 import org.jfree.chart.plot.DefaultDrawingSupplier;
+import org.jkiss.dbeaver.Log;
 import org.jkiss.dbeaver.ui.UIUtils;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -31,22 +33,9 @@ import java.util.List;
  */
 public class BaseChartDrawingSupplier extends DefaultDrawingSupplier {
 
-/*
-    public static final Paint[] DBEAVER_DEFAULT_COLOR_SERIES = new Paint[] {
-        new Color(206, 63, 34),
-        new Color(44, 165, 233),
-        new Color(138, 114, 99),
-        new Color(242, 132, 35),
-        new Color(124, 38, 19),
-        new Color(157, 214, 245),
-        new Color(173, 140, 127),
-        new Color(249, 214, 205),
-        new Color(71, 28, 18),
-        new Color(83, 69, 60),
-    };
-*/
-
     public static final String COLOR_PREF_ID_PREFIX = "org.jkiss.dbeaver.ui.data.chart.color.";
+
+    private static final Log log = Log.getLog(BaseChartDrawingSupplier.class);
 
     public BaseChartDrawingSupplier() {
         super(getChartColorsDefinitions(),
@@ -66,6 +55,11 @@ public class BaseChartDrawingSupplier extends DefaultDrawingSupplier {
                 break;
             }
             result.add(new java.awt.Color(swtColor.getRed(), swtColor.getGreen(), swtColor.getBlue()));
+        }
+        if (result.isEmpty()) {
+            // Something went wrong - no color constants
+            log.warn("Chart colors configuration not found");
+            Collections.addAll(result, BaseChartConstants.DBEAVER_DEFAULT_COLOR_SERIES);
         }
         return result.toArray(new Paint[0]);
     }

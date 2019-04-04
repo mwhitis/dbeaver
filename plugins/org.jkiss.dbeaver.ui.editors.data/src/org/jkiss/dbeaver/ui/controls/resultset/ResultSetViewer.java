@@ -30,7 +30,10 @@ import org.eclipse.jface.viewers.*;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.*;
-import org.eclipse.swt.events.*;
+import org.eclipse.swt.events.FocusEvent;
+import org.eclipse.swt.events.FocusListener;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
@@ -68,6 +71,8 @@ import org.jkiss.dbeaver.model.runtime.DBRRunnableWithProgress;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.load.DatabaseLoadService;
 import org.jkiss.dbeaver.model.runtime.load.ILoadService;
+import org.jkiss.dbeaver.model.sql.DBSQLException;
+import org.jkiss.dbeaver.model.sql.SQLQueryContainer;
 import org.jkiss.dbeaver.model.sql.SQLUtils;
 import org.jkiss.dbeaver.model.struct.*;
 import org.jkiss.dbeaver.model.virtual.*;
@@ -86,6 +91,7 @@ import org.jkiss.dbeaver.ui.controls.resultset.panel.ResultSetPanelDescriptor;
 import org.jkiss.dbeaver.ui.controls.resultset.valuefilter.FilterValueEditDialog;
 import org.jkiss.dbeaver.ui.controls.resultset.valuefilter.FilterValueEditPopup;
 import org.jkiss.dbeaver.ui.controls.resultset.view.EmptyPresentation;
+import org.jkiss.dbeaver.ui.controls.resultset.view.ErrorPresentation;
 import org.jkiss.dbeaver.ui.controls.resultset.view.StatisticsPresentation;
 import org.jkiss.dbeaver.ui.css.CSSUtils;
 import org.jkiss.dbeaver.ui.css.DBStyles;
@@ -144,6 +150,7 @@ public class ResultSetViewer extends Viewer
     private ResultSetFilterPanel filtersPanel;
     private SashForm viewerSash;
 
+    private final VerticalFolder panelSwitchFolder;
     private CTabFolder panelFolder;
     private ToolBarManager panelToolBar;
 
@@ -213,7 +220,19 @@ public class ResultSetViewer extends Viewer
         this.defaultBackground = UIStyles.getDefaultTextBackground();
         this.defaultForeground = UIStyles.getDefaultTextForeground();
 
-        this.mainPanel = UIUtils.createPlaceholder(parent, 2);
+        boolean supportsPanels = supportsPanels();
+
+        this.mainPanel = UIUtils.createPlaceholder(parent, supportsPanels ? 3 : 2);
+
+        this.autoRefreshControl = new AutoRefreshControl(
+            this.mainPanel, ResultSetViewer.class.getSimpleName(), monitor -> refreshData(null));
+
+        if ((decorator.getDecoratorFeatures() & IResultSetDecorator.FEATURE_FILTERS) != 0) {
+            this.filtersPanel = new ResultSetFilterPanel(this, this.mainPanel);
+            GridData gd = new GridData(GridData.FILL_HORIZONTAL);
+            gd.horizontalSpan = ((GridLayout)mainPanel.getLayout()).numColumns;
+            this.filtersPanel.setLayoutData(gd);
+        }
 
         this.presentationSwitchFolder = new VerticalFolder(mainPanel, SWT.LEFT);
         this.presentationSwitchFolder.setLayoutData(new GridData(GridData.FILL_VERTICAL));
@@ -225,13 +244,15 @@ public class ResultSetViewer extends Viewer
         UIUtils.setHelp(this.viewerPanel, IHelpContextIds.CTX_RESULT_SET_VIEWER);
         this.viewerPanel.setRedraw(false);
 
-        try {
-            this.autoRefreshControl = new AutoRefreshControl(
-                this.viewerPanel, ResultSetViewer.class.getSimpleName(), monitor -> refreshData(null));
+        if (supportsPanels) {
+            this.panelSwitchFolder = new VerticalFolder(mainPanel, SWT.RIGHT);
+            this.panelSwitchFolder.setLayoutData(new GridData(GridData.FILL_VERTICAL));
+            CSSUtils.setCSSClass(this.panelSwitchFolder, DBStyles.COLORED_BY_CONNECTION_TYPE);
+        } else {
+            panelSwitchFolder = null;
+        }
 
-            if ((decorator.getDecoratorFeatures() & IResultSetDecorator.FEATURE_FILTERS) != 0) {
-                this.filtersPanel = new ResultSetFilterPanel(this);
-            }
+        try {
             this.findReplaceTarget = new DynamicFindReplaceTarget();
 
             this.viewerSash = UIUtils.createPartDivider(site.getPart(), this.viewerPanel, SWT.HORIZONTAL | SWT.SMOOTH);
@@ -297,7 +318,7 @@ public class ResultSetViewer extends Viewer
                 this.panelFolder.addDisposeListener(e -> panelsMenuManager.dispose());
             }
 
-            setEmptyPresentation();
+            showEmptyPresentation();
 
             if (supportsStatusBar()) {
                 createStatusBar();
@@ -480,9 +501,19 @@ public class ResultSetViewer extends Viewer
     }
 
     @Override
-    public void setEmptyPresentation() {
-        setActivePresentation(new EmptyPresentation());
+    public void showEmptyPresentation() {
         activePresentationDescriptor = null;
+        setActivePresentation(new EmptyPresentation());
+        updatePresentationInToolbar();
+    }
+
+    void showErrorPresentation(String sqlText, String message, Throwable error) {
+        activePresentationDescriptor = null;
+        setActivePresentation(
+            new ErrorPresentation(
+                sqlText,
+                GeneralUtils.makeErrorStatus(message, error)));
+        updatePresentationInToolbar();
     }
 
     void updatePresentation(final DBCResultSet resultSet, boolean metadataChanged) {
@@ -600,9 +631,6 @@ public class ResultSetViewer extends Viewer
                 recordModeButton = new VerticalButton(presentationSwitchFolder, SWT.LEFT | SWT.CHECK);
                 recordModeButton.setAction(new ToggleModeAction(), true);
 
-                if (filtersPanel != null) {
-                    ((GridLayout) presentationSwitchFolder.getLayout()).marginTop = filtersPanel.getSize().y;
-                }
                 if (statusBar != null) {
                     ((GridLayout) presentationSwitchFolder.getLayout()).marginBottom = statusBar.getSize().y;
                 }
@@ -642,7 +670,7 @@ public class ResultSetViewer extends Viewer
         if (activePresentationDescriptor != null) {
             availablePanels.addAll(ResultSetPresentationRegistry.getInstance().getSupportedPanels(
                     getDataSource(), activePresentationDescriptor.getId(), activePresentationDescriptor.getPresentationType()));
-        } else {
+        } else if (activePresentation instanceof StatisticsPresentation) {
             // Stats presentation
             availablePanels.addAll(ResultSetPresentationRegistry.getInstance().getSupportedPanels(
                     getDataSource(), null, IResultSetPresentation.PresentationType.COLUMNS));
@@ -667,9 +695,55 @@ public class ResultSetViewer extends Viewer
             showPanels(panelsVisible, false, false);
             viewerSash.setOrientation(verticalLayout ? SWT.VERTICAL : SWT.HORIZONTAL);
             viewerSash.setWeights(panelWeights);
+
+            // Update panels toolbar
+            for (Control child : panelSwitchFolder.getChildren()) {
+                child.dispose();
+            }
+
+            if (!availablePanels.isEmpty()) {
+                VerticalButton panelsButton = new VerticalButton(panelSwitchFolder, SWT.RIGHT | SWT.CHECK);
+                panelsButton.setText(ResultSetMessages.controls_resultset_config_panels);
+                panelsButton.setImage(DBeaverIcons.getImage(UIIcon.PANEL_CUSTOMIZE));
+                panelsButton.addSelectionListener(new SelectionAdapter() {
+                    @Override
+                    public void widgetSelected(SelectionEvent e) {
+                        showPanels(!isPanelsVisible(), true, true);
+                        panelsButton.setChecked(isPanelsVisible());
+                        updatePanelsButtons();
+                    }
+                });
+                panelsButton.setChecked(panelsVisible);
+                // Add all panels
+                for (final ResultSetPanelDescriptor panel : availablePanels) {
+                    VerticalButton panelButton = new VerticalButton(panelSwitchFolder, SWT.RIGHT | SWT.CHECK);
+                    GridData gd = new GridData(GridData.VERTICAL_ALIGN_BEGINNING);
+                    gd.verticalIndent = 2;
+                    gd.horizontalIndent = 1;
+                    panelButton.setLayoutData(gd);
+                    panelButton.setData(panel);
+                    panelButton.setImage(DBeaverIcons.getImage(panel.getIcon()));
+                    panelButton.setToolTipText(panel.getLabel());
+                    panelButton.addSelectionListener(new SelectionAdapter() {
+                        @Override
+                        public void widgetSelected(SelectionEvent e) {
+                            boolean isPanelVisible = isPanelsVisible() && isPanelVisible(panel.getId());
+                            if (isPanelVisible) {
+                                closePanel(panel.getId());
+                            } else {
+                                activatePanel(panel.getId(), true, true);
+                            }
+                            panelButton.setChecked(!isPanelVisible);
+                            panelsButton.setChecked(isPanelsVisible());
+                            panelSwitchFolder.redraw();
+                        }
+                    });
+                    panelButton.setChecked(panelsVisible && isPanelVisible(panel.getId()));
+                }
+            }
         }
 
-        presentationPanel.layout();
+        mainPanel.layout(true, true);
         if (recordModeButton != null) {
             recordModeButton.setVisible(activePresentationDescriptor != null && activePresentationDescriptor.supportsRecordMode());
         }
@@ -704,6 +778,20 @@ public class ResultSetViewer extends Viewer
                     control.setFocus();
                 }
             });
+        }
+    }
+
+    private void updatePanelsButtons() {
+        boolean panelsVisible = isPanelsVisible();
+        for (Control child : panelSwitchFolder.getChildren()) {
+            if (child instanceof VerticalButton && child.getData() instanceof ResultSetPanelDescriptor) {
+                boolean newChecked = panelsVisible &&
+                    isPanelVisible(((ResultSetPanelDescriptor) child.getData()).getId());
+                if (((VerticalButton) child).isChecked() != newChecked) {
+                    ((VerticalButton) child).setChecked(newChecked);
+                    child.redraw();
+                }
+            }
         }
     }
 
@@ -789,7 +877,7 @@ public class ResultSetViewer extends Viewer
     }
 
     private void savePresentationSettings() {
-        if ((decorator.getDecoratorFeatures() & IResultSetDecorator.FEATURE_PANELS) != 0) {
+        if (supportsPanels()) {
             IDialogSettings pSections = ResultSetUtils.getViewerSettings(SETTINGS_SECTION_PRESENTATIONS);
             for (Map.Entry<ResultSetPresentationDescriptor, PresentationSettings> pEntry : presentationSettings.entrySet()) {
                 if (pEntry.getKey() == null) {
@@ -895,6 +983,7 @@ public class ResultSetViewer extends Viewer
         if (setActive) {
             setActivePanel(id);
         }
+        updatePanelsButtons();
         return true;
     }
 
@@ -949,6 +1038,7 @@ public class ResultSetViewer extends Viewer
         if (activePanels.isEmpty()) {
             showPanels(false, true, true);
         }
+        updatePanelsButtons();
     }
 
     private ResultSetPanelDescriptor getPanelDescriptor(String id) {
@@ -1006,10 +1096,11 @@ public class ResultSetViewer extends Viewer
         if (saveSettings) {
             savePresentationSettings();
         }
+        updatePanelsButtons();
     }
 
     boolean isPanelVisible(String panelId) {
-        return getPanelTab(panelId) != null;
+        return getPresentationSettings().enabledPanelIds.contains(panelId);
     }
 
     void closePanel(String panelId) {
@@ -1307,7 +1398,8 @@ public class ResultSetViewer extends Viewer
             ToolBarManager configToolBarManager = new ToolBarManager(SWT.FLAT | SWT.HORIZONTAL | SWT.RIGHT);
             configToolBarManager.add(new ToolbarSeparatorContribution(true));
 
-            {
+/*
+            if (supportsPanels()) {
                 CommandContributionItemParameter ciParam = new CommandContributionItemParameter(
                     site,
                     "org.jkiss.dbeaver.core.resultset.panels",
@@ -1318,6 +1410,7 @@ public class ResultSetViewer extends Viewer
                 configToolBarManager.add(new CommandContributionItem(ciParam));
             }
             configToolBarManager.add(new ToolbarSeparatorContribution(true));
+*/
 
             ToolBar configToolBar = configToolBarManager.createControl(statusBar);
             CSSUtils.setCSSClass(configToolBar, DBStyles.COLORED_BY_CONNECTION_TYPE);
@@ -2964,11 +3057,24 @@ public class ResultSetViewer extends Viewer
                         model.setUpdateInProgress(false);
                         final boolean metadataChanged = model.isMetadataChanged();
                         if (error != null) {
-                            setStatus(error.getMessage(), DBPMessageType.ERROR);
-                            DBWorkbench.getPlatformUI().showError(
-                                    "Error executing query",
-                                "Query execution failed",
-                                error);
+                            String errorMessage = error.getMessage();
+                            setStatus(errorMessage, DBPMessageType.ERROR);
+
+                            String sqlText;
+                            if (error instanceof DBSQLException) {
+                                sqlText = ((DBSQLException) error).getSqlQuery();
+                            } else if (dataContainer instanceof SQLQueryContainer) {
+                                sqlText = ((SQLQueryContainer) dataContainer).getQuery().getText();
+                            } else {
+                                sqlText = filtersPanel.getActiveQueryText();
+                            }
+
+                            if (getPreferenceStore().getBoolean(ResultSetPreferences.RESULT_SET_SHOW_ERRORS_IN_DIALOG)) {
+                                DBWorkbench.getPlatformUI().showError("Error executing query", "Query execution failed", error);
+                            } else {
+                                showErrorPresentation(sqlText, CommonUtils.isEmpty(errorMessage) ? "Error executing query" : errorMessage, error);
+                                log.error("Error executing query", error);
+                            }
                         } else {
                             if (!metadataChanged && focusRow >= 0 && focusRow < model.getRowCount() && model.getVisibleAttributeCount() > 0) {
                                 // Seems to be refresh
@@ -4081,7 +4187,7 @@ public class ResultSetViewer extends Viewer
         }
 
         ToggleModeAction() {
-            super("Record", Action.AS_CHECK_BOX);
+            super(ResultSetMessages.dialog_text_check_box_record, Action.AS_CHECK_BOX);
         }
 
         @Override

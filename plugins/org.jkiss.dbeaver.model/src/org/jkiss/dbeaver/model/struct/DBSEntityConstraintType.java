@@ -30,9 +30,9 @@ public class DBSEntityConstraintType
     public static final DBSEntityConstraintType PSEUDO_KEY = new DBSEntityConstraintType("pseudo", "PSEUDO", ModelMessages.model_struct_Pseudo_Key, false, true, false); //$NON-NLS-1$
     public static final DBSEntityConstraintType CHECK = new DBSEntityConstraintType("check", "CHECK", ModelMessages.model_struct_Check, false, false, true); //$NON-NLS-1$
     public static final DBSEntityConstraintType NOT_NULL = new DBSEntityConstraintType("notnull", "NOT NULL", ModelMessages.model_struct_Not_NULL, false, false, false); //$NON-NLS-1$
-    public static final DBSEntityConstraintType INDEX = new DBSEntityConstraintType("index", "Index", "Index", false, false, false); //$NON-NLS-1$
-    public static final DBSEntityConstraintType ASSOCIATION = new DBSEntityConstraintType("association", "Association", "Association", true, false, false); //$NON-NLS-1$
-    public static final DBSEntityConstraintType INHERITANCE = new DBSEntityConstraintType("inheritance", "Inheritance", "Inheritance", true, false, false); //$NON-NLS-1$
+    public static final DBSEntityConstraintType INDEX = new DBSEntityConstraintType("index", "Index", ModelMessages.model_struct_Index, false, false, false); //$NON-NLS-1$
+    public static final DBSEntityConstraintType ASSOCIATION = new DBSEntityConstraintType("association", "Association", ModelMessages.model_struct_Association, true, false, false); //$NON-NLS-1$
+    public static final DBSEntityConstraintType INHERITANCE = new DBSEntityConstraintType("inheritance", "Inheritance", ModelMessages.model_struct_Inheritance, true, false, false); //$NON-NLS-1$
 
     private final String id;
     private final String name;

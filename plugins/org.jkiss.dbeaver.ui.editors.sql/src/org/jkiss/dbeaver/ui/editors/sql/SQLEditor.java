@@ -255,7 +255,7 @@ public class SQLEditor extends SQLEditorBase implements
     public int[] getCurrentLines()
     {
         synchronized (runningQueries) {
-            Document document = getDocument();
+            IDocument document = getDocument();
             if (document == null || runningQueries.isEmpty()) {
                 return null;
             }
@@ -420,7 +420,7 @@ public class SQLEditor extends SQLEditorBase implements
     private DBPDataSourceContainer getDataSourceFromContent() {
 
         IProject project = getProject();
-        Document document = getDocument();
+        IDocument document = getDocument();
 
         int totalLines = document.getNumberOfLines();
         if (totalLines == 0) {
@@ -451,7 +451,7 @@ public class SQLEditor extends SQLEditorBase implements
         if (getDataSourceFromContent() == dataSourceContainer) {
             return;
         }
-        Document document = getDocument();
+        IDocument document = getDocument();
 
         try {
 
@@ -1514,6 +1514,10 @@ public class SQLEditor extends SQLEditorBase implements
             DBWorkbench.getPlatformUI().showError("Execution plan", "Execution plan explain isn't supported by current datasource");
             return;
         }
+        // Transform query parameters
+        new SQLQueryJob(getSite(), "Plan query", getExecutionContext(), null, Collections.emptyList(), this.globalScriptContext, null, null)
+            .transformQueryWithParameters(sqlQuery);
+
         DBCPlanStyle planStyle = planner.getPlanStyle();
         if (planStyle == DBCPlanStyle.QUERY) {
             explainPlanFromQuery(planner, sqlQuery);
@@ -1546,7 +1550,7 @@ public class SQLEditor extends SQLEditorBase implements
             resultTabs.setSelection(item);
         }
 
-        planView.explainQueryPlan(sqlQuery);
+        planView.explainQueryPlan(sqlQuery, null);
     }
 
     private void explainPlanFromQuery(final DBCQueryPlanner planner, final SQLQuery sqlQuery) {
@@ -2658,10 +2662,10 @@ public class SQLEditor extends SQLEditorBase implements
 
         @NotNull
         @Override
-        public DBCStatistics readData(@NotNull DBCExecutionSource source, @NotNull DBCSession session, @NotNull DBDDataReceiver dataReceiver, DBDDataFilter dataFilter, long firstRow, long maxRows, long flags) throws DBCException
+        public DBCStatistics readData(@NotNull DBCExecutionSource source, @NotNull DBCSession session, @NotNull DBDDataReceiver dataReceiver, DBDDataFilter dataFilter, long firstRow, long maxRows, long flags, int fetchSize) throws DBCException
         {
             if (dataContainer != null) {
-                return dataContainer.readData(source, session, dataReceiver, dataFilter, firstRow, maxRows, flags);
+                return dataContainer.readData(source, session, dataReceiver, dataFilter, firstRow, maxRows, flags, 0);
             }
             final SQLQueryJob job = queryProcessor.curJob;
             if (job == null) {

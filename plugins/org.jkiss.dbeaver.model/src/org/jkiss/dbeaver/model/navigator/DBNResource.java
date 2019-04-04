@@ -22,6 +22,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
+import org.jkiss.dbeaver.ModelPreferences;
 import org.jkiss.dbeaver.model.DBConstants;
 import org.jkiss.dbeaver.model.DBIcon;
 import org.jkiss.dbeaver.model.DBPDataSourceContainer;
@@ -29,6 +30,7 @@ import org.jkiss.dbeaver.model.DBPImage;
 import org.jkiss.dbeaver.model.app.DBPResourceHandler;
 import org.jkiss.dbeaver.model.meta.Property;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
+import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
 
@@ -167,7 +169,7 @@ public class DBNResource extends DBNNode// implements IContributorResourceAdapte
             return EMPTY_NODES;
         } else {
             filterChildren(result);
-            final DBNNode[] childNodes = result.toArray(new DBNNode[result.size()]);
+            final DBNNode[] childNodes = result.toArray(new DBNNode[0]);
             sortChildren(childNodes);
             return childNodes;
         }

@@ -20,6 +20,7 @@ import org.eclipse.core.resources.*;
 import org.eclipse.core.runtime.CoreException;
 import org.jkiss.dbeaver.DBException;
 import org.jkiss.dbeaver.Log;
+import org.jkiss.dbeaver.ModelPreferences;
 import org.jkiss.dbeaver.model.DBIcon;
 import org.jkiss.dbeaver.model.DBPImage;
 import org.jkiss.dbeaver.model.app.DBPDataSourceRegistry;
@@ -28,9 +29,12 @@ import org.jkiss.dbeaver.model.app.DBPResourceHandler;
 import org.jkiss.dbeaver.model.app.DBPResourceHandlerDescriptor;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
 import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
+import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.utils.ArrayUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -122,6 +126,20 @@ public class DBNProject extends DBNResource
         } catch (CoreException e) {
             throw new DBException("Can't rename project", e);
         }
+    }
+
+    @Override
+    public DBNNode[] getChildren(DBRProgressMonitor monitor) throws DBException {
+        if (!DBWorkbench.getPlatform().getPreferenceStore().getBoolean(ModelPreferences.NAVIGATOR_SHOW_FOLDER_PLACEHOLDERS)) {
+            // Remove non-existing resources (placeholders)
+            List<DBNNode> children = new ArrayList<>();
+            Collections.addAll(children, super.getChildren(monitor));
+            children.removeIf(node ->
+                    node instanceof DBNResource && !((DBNResource) node).getResource().exists());
+            return children.toArray(new DBNNode[0]);
+        }
+
+        return super.getChildren(monitor);
     }
 
     @Override

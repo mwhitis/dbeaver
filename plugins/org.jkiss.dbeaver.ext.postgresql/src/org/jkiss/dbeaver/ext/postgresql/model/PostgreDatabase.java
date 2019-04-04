@@ -169,12 +169,24 @@ public class PostgreDatabase extends JDBCRemoteInstance<PostgreDataSource>
         return initialOwner;
     }
 
+    public void setInitialOwner(PostgreRole initialOwner) {
+        this.initialOwner = initialOwner;
+    }
+
     public PostgreTablespace getInitialTablespace() {
         return initialTablespace;
     }
 
+    public void setInitialTablespace(PostgreTablespace initialTablespace) {
+        this.initialTablespace = initialTablespace;
+    }
+
     public PostgreCharset getInitialEncoding() {
         return initialEncoding;
+    }
+
+    public void setInitialEncoding(PostgreCharset initialEncoding) {
+        this.initialEncoding = initialEncoding;
     }
 
     @Override
@@ -237,6 +249,7 @@ public class PostgreDatabase extends JDBCRemoteInstance<PostgreDataSource>
 
     @Property(viewable = true, multiline = true, order = 100)
     public String getDescription(DBRProgressMonitor monitor) throws DBException {
+        if (getDataSource().getServerType().supportsDatabaseDescription())
         if (description != null) {
             return description;
         }
@@ -245,7 +258,10 @@ public class PostgreDatabase extends JDBCRemoteInstance<PostgreDataSource>
             description = JDBCUtils.queryString(session, "select description from pg_shdescription "
                     + "join pg_database on objoid = pg_database.oid where datname = ?", getName());
         } catch (SQLException e) {
-            throw new DBException("Error reading database description ", e, getDataSource()); 
+            log.debug("Error reading database description ", e);
+        }
+        if (description == null) {
+            description = "";
         }
         
         return description;
@@ -276,6 +292,10 @@ public class PostgreDatabase extends JDBCRemoteInstance<PostgreDataSource>
 
     public String getTemplateName() {
         return templateName;
+    }
+
+    public void setTemplateName(String templateName) {
+        this.templateName = templateName;
     }
 
     @Nullable

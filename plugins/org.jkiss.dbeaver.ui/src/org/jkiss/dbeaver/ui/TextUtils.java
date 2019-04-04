@@ -32,11 +32,6 @@ import java.util.StringTokenizer;
  * Text utils
  */
 public class TextUtils {
-    public static final char PARAGRAPH_CHAR = (char) 182;
-
-    public static String compactWhiteSpaces(String str) {
-        return str.replaceAll("\\s+", " ");
-    }
 
     public static boolean isEmptyLine(IDocument document, int line)
             throws BadLocationException {
@@ -129,11 +124,11 @@ public class TextUtils {
         if (width <= 0) {
             return ""; //$NON-NLS-1$
         }
-        int avgCharWidth = fontMetrics.getAverageCharWidth();
-        float length = t.length();
+        double avgCharWidth = fontMetrics.getAverageCharacterWidth();
+        double length = t.length();
         if (width < length * avgCharWidth) {
-            length = (float) width / avgCharWidth;
-            length *= 1.5;
+            length = (double) width / avgCharWidth;
+            length *= 2; // In case of big number of narrow characters
             if (length < t.length()) {
                 t = t.substring(0, (int) length);
                 //return getShortText(gc, t, width);
@@ -214,14 +209,6 @@ public class TextUtils {
     public static boolean isPointInRectangle(int x, int y, int rectX, int rectY, int rectWidth, int rectHeight)
     {
         return (x >= rectX) && (y >= rectY) && x < (rectX + rectWidth) && y < (rectY + rectHeight);
-    }
-
-    public static String getSingleLineString(String displayString) {
-        return displayString
-            .replace('\n', PARAGRAPH_CHAR)
-            .replace("\r", "")
-            .replace("\t", " ")
-            .replace((char)0, ' ');
     }
 
     /**
