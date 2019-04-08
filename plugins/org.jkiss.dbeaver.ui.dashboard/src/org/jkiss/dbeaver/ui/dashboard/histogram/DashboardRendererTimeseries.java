@@ -126,7 +126,14 @@ public class DashboardRendererTimeseries extends DashboardRendererBase {
                     unitType = DateTickUnitType.SECOND;
                     break;
             }
-            domainAxis.setTickUnit(new DateTickUnit(unitType, Math.min(MAX_TIMESERIES_RANGE_LABELS, container.getDashboardMaxItems() / 5)));
+            int tickCount = container.getDashboardMaxItems();
+            if (tickCount > 40) {
+                tickCount = container.getDashboardMaxItems() / 5;
+            }
+            if (tickCount <= 1) {
+                tickCount = 10;
+            }
+            domainAxis.setTickUnit(new DateTickUnit(unitType, Math.min(MAX_TIMESERIES_RANGE_LABELS, tickCount)));
             if (viewConfig != null && !viewConfig.isDomainTicksVisible()) {
                 domainAxis.setVisible(false);
             }
@@ -220,7 +227,21 @@ public class DashboardRendererTimeseries extends DashboardRendererBase {
 
             switch (container.getDashboardCalcType()) {
                 case value: {
+                    int maxDP = 200;
+                    Date startTime = null;
+
                     for (DashboardDatasetRow row : rows) {
+                        if (startTime == null) {
+                            startTime = row.getTimestamp();
+                        } else {
+                            if (container.getDashboardInterval() == DashboardInterval.second || container.getDashboardInterval() == DashboardInterval.millisecond) {
+                                long diffSeconds = (row.getTimestamp().getTime() - startTime.getTime()) / 1000;
+                                if (diffSeconds > maxDP) {
+                                    // Too big difference between start and end points. Stop here otherwise we'll flood chart with too many ticks
+                                    break;
+                                }
+                            }
+                        }
                         Object value = row.getValues()[i];
                         if (value instanceof Number) {
                             series.addOrUpdate(makeDataItem(container, row), (Number) value);
@@ -312,7 +333,7 @@ public class DashboardRendererTimeseries extends DashboardRendererBase {
     private XYPlot getDashboardPlot(DashboardContainer container) {
         DashboardChartComposite chartComposite = getChartComposite(container);
         JFreeChart chart = chartComposite.getChart();
-        return (XYPlot) chart.getPlot();
+        return chart == null ? null : (XYPlot) chart.getPlot();
     }
 
 }

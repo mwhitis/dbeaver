@@ -102,6 +102,7 @@ public class UIUtils {
     public static final String INLINE_WIDGET_EDITOR_ID = "org.jkiss.dbeaver.ui.InlineWidgetEditor";
 
     private static SharedTextColors sharedTextColors = new SharedTextColors();
+    private static SharedFonts sharedFonts = new SharedFonts();
 
     public static VerifyListener getIntegerVerifyListener(Locale locale)
     {
@@ -1428,6 +1429,10 @@ public class UIUtils {
         return sharedTextColors;
     }
 
+    public static SharedFonts getSharedFonts() {
+        return sharedFonts;
+    }
+
     public static void run(
         IRunnableContext runnableContext,
         boolean fork,
@@ -1778,4 +1783,12 @@ public class UIUtils {
         return greyLevel(rgb) < 128;
     }
 
+    public static void openWebBrowser(String url)
+    {
+        url = url.trim();
+        if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("ftp://")) {
+            url = "http://" + url;
+        }
+        Program.launch(url);
+    }
 }

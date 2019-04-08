@@ -47,6 +47,7 @@ import org.jkiss.dbeaver.model.runtime.VoidProgressMonitor;
 import org.jkiss.dbeaver.model.sql.format.SQLFormatterRegistry;
 import org.jkiss.dbeaver.registry.*;
 import org.jkiss.dbeaver.registry.datatype.DataTypeProviderRegistry;
+import org.jkiss.dbeaver.registry.driver.DriverDescriptor;
 import org.jkiss.dbeaver.registry.formatter.DataFormatterRegistry;
 import org.jkiss.dbeaver.registry.language.PlatformLanguageRegistry;
 import org.jkiss.dbeaver.runtime.IPluginService;
@@ -56,6 +57,7 @@ import org.jkiss.dbeaver.runtime.net.GlobalProxySelector;
 import org.jkiss.dbeaver.runtime.qm.QMControllerImpl;
 import org.jkiss.dbeaver.runtime.qm.QMLogFileWriter;
 import org.jkiss.dbeaver.ui.editors.sql.registry.SQLFormatterConfigurationRegistry;
+import org.jkiss.dbeaver.ui.resources.DefaultResourceHandlerImpl;
 import org.jkiss.dbeaver.utils.ContentUtils;
 import org.jkiss.dbeaver.utils.GeneralUtils;
 import org.jkiss.dbeaver.utils.RuntimeUtils;
@@ -338,6 +340,11 @@ public class DBeaverCore implements DBPPlatform {
         return workspace;
     }
 
+    @Override
+    public DBPResourceHandler getDefaultResourceHandler() {
+        return DefaultResourceHandlerImpl.INSTANCE;
+    }
+
     @NotNull
     @Override
     public DBPProjectManager getProjectManager() {
@@ -539,6 +546,11 @@ public class DBeaverCore implements DBPPlatform {
     @Override
     public File getConfigurationFile(String fileName) {
         return DBeaverActivator.getConfigurationFile(fileName);
+    }
+
+    @Override
+    public File getCustomDriversHome() {
+        return DriverDescriptor.getCustomDriversHome();
     }
 
     @Override
